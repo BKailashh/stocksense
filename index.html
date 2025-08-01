@@ -1,0 +1,1071 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Stock Analysis Dashboard (Live Data)</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap"
+      rel="stylesheet"
+    />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Load configuration - this file is gitignored and only exists locally -->
+    <script src="config.js"></script>
+    <style>
+      body {
+        font-family: "Inter", sans-serif;
+        background-color: #0d1a2e; /* Dark Blue */
+      }
+      .positive {
+        color: #22c55e; /* Green */
+      }
+      .negative {
+        color: #ef4444; /* Red */
+      }
+      .card {
+        background-color: #172a46;
+        border: 1px solid #2d3d5a;
+        transition: all 0.3s ease;
+      }
+      .card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1),
+          0 4px 6px -2px rgba(34, 197, 94, 0.1);
+      }
+      .btn {
+        transition: all 0.3s ease;
+        padding: 0.75rem 1rem;
+        border-radius: 0.5rem;
+        font-weight: 600;
+        text-align: center;
+      }
+      .btn:hover {
+        transform: translateY(-2px);
+        box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+      }
+      .btn-primary {
+        background-color: #2563eb;
+        color: #ffffff;
+      }
+      .btn-primary:hover {
+        background-color: #1d4ed8;
+      }
+      .btn-buy {
+        background-color: #22c55e;
+        color: #ffffff;
+      }
+      .btn-buy:hover {
+        background-color: #16a34a;
+      }
+      .btn-sell {
+        background-color: #ef4444;
+        color: #ffffff;
+      }
+      .btn-sell:hover {
+        background-color: #dc2626;
+      }
+      .btn:disabled {
+        background-color: #4a5a7a;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+      .loader {
+        border: 4px solid #f3f3f3;
+        border-top: 4px solid #22c55e;
+        border-radius: 50%;
+        width: 40px;
+        height: 40px;
+        animation: spin 1s linear infinite;
+        margin: 20px auto;
+      }
+      @keyframes spin {
+        0% {
+          transform: rotate(0deg);
+        }
+        100% {
+          transform: rotate(360deg);
+        }
+      }
+      .modal {
+        display: none;
+        position: fixed;
+        z-index: 100;
+        left: 0;
+        top: 0;
+        width: 100%;
+        height: 100%;
+        overflow: auto;
+        background-color: rgba(0, 0, 0, 0.5);
+        justify-content: center;
+        align-items: center;
+      }
+      .modal-content {
+        background-color: #172a46;
+        padding: 20px;
+        border: 1px solid #2d3d5a;
+        width: 90%;
+        max-width: 500px;
+        border-radius: 10px;
+        text-align: center;
+      }
+      .close-btn {
+        color: #aaa;
+        float: right;
+        font-size: 28px;
+        font-weight: bold;
+        cursor: pointer;
+      }
+      .metric-input {
+        background-color: #2d3d5a;
+        border: 1px solid #4a5a7a;
+        color: white;
+        border-radius: 0.25rem;
+        padding: 0.25rem 0.5rem;
+        width: 100%;
+        text-align: center;
+        font-size: 1rem;
+        font-weight: 600;
+      }
+      .metric-input::placeholder {
+        color: #94a3b8;
+        font-weight: 400;
+      }
+      .fade-in {
+        animation: fadeIn 0.5s ease-in-out;
+      }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+    </style>
+  </head>
+  <body class="text-white p-4 lg:p-8">
+    <div class="container mx-auto">
+      <!-- Header -->
+      <header
+        class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-8"
+      >
+        <div>
+          <h1 class="text-3xl font-bold">StockSense</h1>
+          <p class="text-slate-400">
+            Your real-time investment companion. (Live Data)
+          </p>
+        </div>
+        <div class="relative mt-4 sm:mt-0 flex items-center w-full sm:w-auto">
+          <select
+            id="exchangeSelect"
+            class="bg-slate-800 border border-slate-700 rounded-l-lg py-2 px-3 h-full focus:outline-none focus:ring-2 focus:ring-green-500"
+          >
+            <option value="NSE">NSE</option>
+            <option value="US" disabled>US (Coming Soon)</option>
+          </select>
+          <input
+            id="searchStockInput"
+            type="text"
+            placeholder="Search NSE name or symbol"
+            class="bg-slate-800 border-t border-b border-slate-700 py-2 px-4 w-full sm:w-52 focus:outline-none focus:ring-2 focus:ring-green-500"
+          />
+          <button
+            id="searchStockBtn"
+            class="bg-green-600 hover:bg-green-700 text-white font-bold py-2 px-4 rounded-r-lg"
+          >
+            Search
+          </button>
+        </div>
+      </header>
+
+      <main class="max-w-5xl mx-auto w-full">
+        <div
+          class="card text-center p-3 mb-4 text-sm text-slate-300 bg-blue-900/30 border-blue-700"
+        >
+          <strong>Note:</strong> If the tool is not fetching data, the API rate
+          limit may have been reached. Feel free to input the data manually to
+          get insights (these details can be found with a simple Google search).
+        </div>
+        <div
+          class="card text-center p-3 mb-8 text-sm text-slate-300 bg-yellow-900/30 border-yellow-700"
+        >
+          In case of any bug, please mail to
+          <a href="mailto:stocksense96@gmail.com" class="underline"
+            >stocksense96@gmail.com</a
+          >.
+        </div>
+        <!-- Main Content: Detailed View & Suggestions -->
+        <div class="space-y-8">
+          <!-- Detailed Performance View -->
+          <section id="stockDisplayCard" class="card rounded-xl p-6">
+            <div
+              id="stockDisplayLoader"
+              class="loader"
+              style="display: none"
+            ></div>
+            <div id="stockDisplayContent">
+              <div
+                class="flex justify-between items-center mb-4 border-b border-slate-700 pb-2"
+              >
+                <div class="flex items-center gap-2">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    class="h-6 w-6 text-green-400"
+                    fill="none"
+                    viewBox="0 0 24 24"
+                    stroke="currentColor"
+                  >
+                    <path
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      stroke-width="2"
+                      d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6"
+                    />
+                  </svg>
+                  <h2 class="text-xl font-bold">Stock Performance</h2>
+                </div>
+                <a
+                  id="learnMoreStock"
+                  href="#"
+                  target="_blank"
+                  class="text-sm text-blue-400 hover:underline"
+                  >Learn More &rarr;</a
+                >
+              </div>
+              <div
+                class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-1"
+              >
+                <div>
+                  <h2 id="stockName" class="text-2xl font-bold">Loading...</h2>
+                  <p id="stockSymbol" class="text-slate-400"></p>
+                </div>
+                <div class="text-right mt-4 sm:mt-0">
+                  <p id="stockPrice" class="text-3xl font-bold">--</p>
+                  <p id="stockChange" class="text-lg font-medium">--</p>
+                </div>
+              </div>
+              <p
+                id="lastRefreshed"
+                class="text-xs text-slate-500 text-right mb-4"
+              >
+                Data as of: --
+              </p>
+
+              <!-- Manual Current Price Input -->
+              <div
+                id="manualPriceContainer"
+                class="mt-2 mb-4 flex flex-col items-center"
+                style="display: none"
+              >
+                <label
+                  for="manualPriceInput"
+                  class="block text-sm font-medium text-slate-400 mb-1"
+                  >Enter Today's Price for Live Analysis</label
+                >
+                <input
+                  type="number"
+                  id="manualPriceInput"
+                  class="metric-input w-full sm:w-1/2"
+                  placeholder="e.g., 215.50"
+                />
+              </div>
+
+              <!-- Chart -->
+              <div class="h-64 md:h-80">
+                <canvas id="stockChart"></canvas>
+              </div>
+
+              <!-- Manual Input Label -->
+              <div
+                id="manualInputLabel"
+                class="mt-6 mb-2 text-center text-sm text-slate-400"
+                style="display: none"
+              >
+                Data not available? Enter it manually below. (Try a Google
+                search for the data)
+              </div>
+
+              <!-- Key Metrics -->
+              <div
+                id="keyMetrics"
+                class="grid grid-cols-2 md:grid-cols-4 gap-4 mt-2 text-center"
+              >
+                <div>
+                  <p class="text-slate-400 text-sm">Market Cap</p>
+                  <input
+                    type="text"
+                    id="marketCapInput"
+                    class="metric-input"
+                    placeholder="N/A"
+                  />
+                </div>
+                <div>
+                  <p class="text-slate-400 text-sm">P/E Ratio</p>
+                  <input
+                    type="text"
+                    id="peRatioInput"
+                    class="metric-input"
+                    placeholder="N/A"
+                  />
+                </div>
+                <div>
+                  <p class="text-slate-400 text-sm">52-Wk High</p>
+                  <input
+                    type="text"
+                    id="weekHighInput"
+                    class="metric-input"
+                    placeholder="N/A"
+                  />
+                </div>
+                <div>
+                  <p class="text-slate-400 text-sm">Dividend Yield</p>
+                  <input
+                    type="text"
+                    id="divYieldInput"
+                    class="metric-input"
+                    placeholder="N/A"
+                  />
+                </div>
+              </div>
+              <!-- AI Actions -->
+              <div class="mt-6 space-y-4">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <button id="buyBtn" class="w-full btn btn-buy" disabled>
+                    Analyze Buy
+                  </button>
+                  <button id="sellBtn" class="w-full btn btn-sell" disabled>
+                    Analyze Sell
+                  </button>
+                </div>
+                <div
+                  id="aiActionLoader"
+                  class="loader"
+                  style="display: none"
+                ></div>
+                <div
+                  id="aiActionResult"
+                  class="mt-4 text-slate-300 p-4 bg-slate-800/50 rounded-lg"
+                ></div>
+              </div>
+            </div>
+          </section>
+
+          <!-- AI Investment Advisor -->
+          <section class="card rounded-xl p-6">
+            <div
+              class="flex justify-between items-center mb-4 border-b border-slate-700 pb-2"
+            >
+              <div class="flex items-center gap-2">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-6 w-6 text-blue-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z"
+                  />
+                </svg>
+                <h2 class="text-xl font-bold">AI Investment Advisor</h2>
+              </div>
+              <a
+                href="https://www.investopedia.com/terms/r/roboadvisor-roboadviser.asp"
+                target="_blank"
+                class="text-sm text-blue-400 hover:underline"
+                >Learn More &rarr;</a
+              >
+            </div>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+              <div>
+                <label
+                  for="riskTolerance"
+                  class="block text-sm font-medium text-slate-400 mb-1"
+                  >Risk Tolerance</label
+                >
+                <select
+                  id="riskTolerance"
+                  class="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+                >
+                  <option>Low</option>
+                  <option selected>Medium</option>
+                  <option>High</option>
+                </select>
+              </div>
+              <div>
+                <label
+                  for="investmentGoal"
+                  class="block text-sm font-medium text-slate-400 mb-1"
+                  >Investment Goal</label
+                >
+                <input
+                  type="text"
+                  id="investmentGoal"
+                  value="Long-term growth"
+                  placeholder="e.g., retirement, wealth creation"
+                  class="w-full bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+                />
+              </div>
+            </div>
+            <button id="generateIdeasBtn" class="w-full btn btn-primary">
+              Generate Investment Ideas
+            </button>
+            <div
+              id="investmentIdeasLoader"
+              class="loader"
+              style="display: none"
+            ></div>
+            <div
+              id="investmentIdeasResult"
+              class="mt-4 text-slate-300 p-4 bg-slate-800/50 rounded-lg"
+            ></div>
+          </section>
+
+          <!-- Donation Section -->
+          <section class="card rounded-xl p-6 text-center">
+            <div
+              class="flex justify-between items-center mb-4 border-b border-slate-700 pb-2"
+            >
+              <div class="flex items-center gap-2">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-6 w-6 text-pink-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
+                  />
+                </svg>
+                <h2 class="text-xl font-bold">Support This Project</h2>
+              </div>
+            </div>
+            <p class="text-slate-400 mb-4">
+              If you find this tool helpful, please consider supporting its
+              development.
+            </p>
+            <button id="donateBtn" class="btn btn-primary">
+              Donate via UPI
+            </button>
+          </section>
+        </div>
+      </main>
+    </div>
+
+    <!-- Modals -->
+    <div id="infoModal" class="modal">
+      <div class="modal-content">
+        <span class="close-btn">&times;</span>
+        <h2 id="modalTitle" class="text-xl font-bold mb-4 text-red-500">
+          Error
+        </h2>
+        <p id="modalMessage"></p>
+      </div>
+    </div>
+
+    <div id="searchModal" class="modal">
+      <div class="modal-content">
+        <span id="closeSearchModal" class="close-btn">&times;</span>
+        <h2 class="text-xl font-bold mb-4 text-white">Search Results</h2>
+        <div
+          id="searchResultsList"
+          class="space-y-2 text-left max-h-96 overflow-y-auto"
+        >
+          <!-- Results will be populated here -->
+        </div>
+      </div>
+    </div>
+
+    <div id="donationModal" class="modal">
+      <div class="modal-content">
+        <span id="closeDonationModal" class="close-btn">&times;</span>
+        <h2 class="text-xl font-bold mb-4 text-white">Donate via UPI</h2>
+        <p class="text-slate-400 mb-4">Scan the QR code with your UPI app.</p>
+        <img
+          id="upiQrCode"
+          src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=bkailashh1996cs-1@okhdfcbank"
+          alt="UPI QR Code"
+          class="mx-auto rounded-lg"
+        />
+        <p class="mt-4 text-slate-300">Or use the UPI ID:</p>
+        <p id="upiId" class="font-mono bg-slate-800 p-2 rounded-lg my-2">
+          bkailashh1996cs-1@okhdfcbank
+        </p>
+        <button id="copyUpiBtn" class="btn btn-primary mt-2">
+          Copy UPI ID
+        </button>
+      </div>
+    </div>
+
+    <script>
+      // --- State and Constants ---
+      // Get API key from config.js (if available) or use empty string
+      const EODHD_API_KEY = window.CONFIG?.EODHD_API_KEY || "";
+      let currentStockData = {};
+
+      // --- DOM Elements ---
+      const stockNameEl = document.getElementById("stockName");
+      const stockSymbolEl = document.getElementById("stockSymbol");
+      const stockPriceEl = document.getElementById("stockPrice");
+      const stockChangeEl = document.getElementById("stockChange");
+      const lastRefreshedEl = document.getElementById("lastRefreshed");
+
+      const manualPriceContainer = document.getElementById(
+        "manualPriceContainer"
+      );
+      const manualPriceInput = document.getElementById("manualPriceInput");
+
+      const manualInputLabel = document.getElementById("manualInputLabel");
+      const marketCapInput = document.getElementById("marketCapInput");
+      const peRatioInput = document.getElementById("peRatioInput");
+      const weekHighInput = document.getElementById("weekHighInput");
+      const divYieldInput = document.getElementById("divYieldInput");
+
+      const stockDisplayLoader = document.getElementById("stockDisplayLoader");
+      const stockDisplayContent = document.getElementById(
+        "stockDisplayContent"
+      );
+      const learnMoreStockLink = document.getElementById("learnMoreStock");
+
+      const searchInput = document.getElementById("searchStockInput");
+      const searchBtn = document.getElementById("searchStockBtn");
+      const exchangeSelect = document.getElementById("exchangeSelect");
+      const buyBtn = document.getElementById("buyBtn");
+      const sellBtn = document.getElementById("sellBtn");
+      const aiActionLoader = document.getElementById("aiActionLoader");
+      const aiActionResult = document.getElementById("aiActionResult");
+
+      const generateIdeasBtn = document.getElementById("generateIdeasBtn");
+
+      const infoModal = document.getElementById("infoModal");
+      const modalTitle = document.getElementById("modalTitle");
+      const modalMessage = document.getElementById("modalMessage");
+      const closeBtn = document.querySelector(".close-btn");
+
+      const searchModal = document.getElementById("searchModal");
+      const searchResultsList = document.getElementById("searchResultsList");
+      const closeSearchModalBtn = document.getElementById("closeSearchModal");
+
+      const donationModal = document.getElementById("donationModal");
+      const donateBtn = document.getElementById("donateBtn");
+      const closeDonationModalBtn =
+        document.getElementById("closeDonationModal");
+      const copyUpiBtn = document.getElementById("copyUpiBtn");
+      const upiIdEl = document.getElementById("upiId");
+
+      // --- Chart.js Initialization ---
+      const ctx = document.getElementById("stockChart").getContext("2d");
+      const stockChart = new Chart(ctx, {
+        type: "line",
+        data: {
+          labels: [],
+          datasets: [
+            {
+              label: "Price",
+              data: [],
+              borderWidth: 2,
+              pointRadius: 0,
+              tension: 0.4,
+              fill: true,
+            },
+          ],
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              enabled: true,
+              mode: "index",
+              intersect: false,
+              backgroundColor: "#0d1a2e",
+              titleColor: "#cbd5e1",
+              bodyColor: "#cbd5e1",
+              borderColor: "#2d3d5a",
+              borderWidth: 1,
+              padding: 10,
+              caretPadding: 10,
+              displayColors: false,
+              callbacks: {
+                label: function (context) {
+                  let label = context.dataset.label || "";
+                  if (label) {
+                    label += ": ";
+                  }
+                  if (context.parsed.y !== null) {
+                    const currency = currentStockData.quote.currency;
+                    const locale = currency === "INR" ? "en-IN" : "en-US";
+                    label += new Intl.NumberFormat(locale, {
+                      style: "currency",
+                      currency: currency,
+                    }).format(context.parsed.y);
+                  }
+                  return ` ${label}`;
+                },
+              },
+            },
+          },
+          scales: {
+            x: { grid: { display: false }, ticks: { color: "#94a3b8" } },
+            y: {
+              grid: { color: "#1e2d3b" },
+              ticks: { color: "#94a3b8", callback: (value) => value },
+            },
+          },
+        },
+      });
+
+      // --- Functions ---
+
+      function showInfoModal(title, message, isError = true) {
+        modalTitle.textContent = title;
+        modalMessage.textContent = message;
+        modalTitle.className = isError
+          ? "text-xl font-bold mb-4 text-red-500"
+          : "text-xl font-bold mb-4 text-green-500";
+        infoModal.style.display = "flex";
+      }
+
+      async function fetchAndDisplayStockData(symbol, exchange) {
+        stockDisplayLoader.style.display = "block";
+        stockDisplayContent.style.display = "none";
+        [buyBtn, sellBtn].forEach((btn) => (btn.disabled = true));
+        aiActionResult.innerHTML = "";
+        manualPriceContainer.style.display = "none";
+        manualPriceInput.value = "";
+
+        try {
+          const dailyData = await fetchEODHD({
+            api: "eod",
+            symbol: symbol,
+            period: "d",
+          });
+
+          let timeSeries, lastRefreshed, currency;
+
+          timeSeries = dailyData;
+          lastRefreshed =
+            timeSeries.length > 0
+              ? timeSeries[timeSeries.length - 1].date
+              : "N/A";
+          currency = "INR";
+
+          if (
+            !timeSeries ||
+            (Array.isArray(timeSeries) && timeSeries.length < 2)
+          ) {
+            throw new Error(
+              `Insufficient historical data available for ${symbol}.`
+            );
+          }
+
+          const latestData = timeSeries[timeSeries.length - 1];
+          const previousData = timeSeries[timeSeries.length - 2];
+
+          const latestClose = parseFloat(latestData.adjusted_close);
+          const previousClose = parseFloat(previousData.adjusted_close);
+
+          const change = latestClose - previousClose;
+          const changePercent = (change / previousClose) * 100;
+
+          currentStockData.quote = {
+            price: latestClose,
+            change: change,
+            changePercent: changePercent,
+            lastRefreshed: lastRefreshed,
+            currency: currency,
+          };
+
+          const historySlice = timeSeries.slice(-30);
+          currentStockData.history = {
+            labels: historySlice.map((item) => item.date).reverse(),
+            prices: historySlice
+              .map((item) => parseFloat(item.adjusted_close))
+              .reverse(),
+          };
+
+          currentStockData.overview = {
+            name: symbol,
+            marketCap: null,
+            peRatio: null,
+            week52High: null,
+            dividendYield: null,
+          };
+
+          updateUI();
+        } catch (error) {
+          console.error("Error fetching stock data:", error);
+          showInfoModal("Data Fetch Error", error.message);
+          stockDisplayLoader.style.display = "none";
+          stockDisplayContent.style.display = "block";
+          stockNameEl.textContent = "Error Loading Data";
+          stockSymbolEl.textContent = symbol;
+        } finally {
+          stockDisplayLoader.style.display = "none";
+          stockDisplayContent.style.display = "block";
+          stockDisplayContent.classList.add("fade-in");
+          if (currentStockData.quote) {
+            [buyBtn, sellBtn].forEach((btn) => (btn.disabled = false));
+          }
+        }
+      }
+
+      function updateUI() {
+        const { quote, overview, history } = currentStockData;
+        const currencySymbol = getCurrencySymbol(quote.currency);
+        const cleanSymbol = searchInput.value.split(".")[0];
+        const exchangeCode = "NSE";
+
+        learnMoreStockLink.href = `https://www.google.com/finance/quote/${cleanSymbol}:${exchangeCode}`;
+
+        stockNameEl.textContent = overview.name;
+        stockSymbolEl.textContent = searchInput.value.trim().toUpperCase();
+
+        stockPriceEl.textContent = `${currencySymbol}${quote.price.toFixed(2)}`;
+        stockChangeEl.textContent = `${
+          quote.change >= 0 ? "+" : ""
+        }${quote.change.toFixed(2)} (${quote.changePercent.toFixed(2)}%)`;
+        lastRefreshedEl.textContent = `*Data as of previous close: ${quote.lastRefreshed}`;
+
+        const priceClass = quote.change >= 0 ? "positive" : "negative";
+        stockPriceEl.className = `text-3xl font-bold ${priceClass}`;
+        stockChangeEl.className = `text-lg font-medium ${priceClass}`;
+
+        manualPriceContainer.style.display = "block";
+
+        marketCapInput.value = overview.marketCap || "";
+        peRatioInput.value = overview.peRatio || "";
+        weekHighInput.value = overview.week52High || "";
+        divYieldInput.value = overview.dividendYield || "";
+
+        const hasMissingData =
+          !overview.marketCap ||
+          !overview.peRatio ||
+          !overview.week52High ||
+          !overview.dividendYield;
+        manualInputLabel.style.display = hasMissingData ? "block" : "none";
+
+        stockChart.data.labels = history.labels;
+        stockChart.data.datasets[0].data = history.prices;
+        const borderColor = quote.change >= 0 ? "#22c55e" : "#ef4444";
+        const gradColor =
+          quote.change >= 0
+            ? "rgba(34, 197, 94, 0.5)"
+            : "rgba(239, 68, 68, 0.5)";
+        stockChart.data.datasets[0].borderColor = borderColor;
+        const newGradient = ctx.createLinearGradient(0, 0, 0, 300);
+        newGradient.addColorStop(0, gradColor);
+        newGradient.addColorStop(1, "rgba(0,0,0,0)");
+        stockChart.data.datasets[0].backgroundColor = newGradient;
+        stockChart.options.scales.y.ticks.callback = (value) =>
+          currencySymbol + value;
+        stockChart.update();
+      }
+
+      async function fetchEODHD(params) {
+        const { api, symbol, ...restParams } = params;
+        const url = new URL(`https://eodhd.com/api/${api}/${symbol}`);
+        url.searchParams.append("api_token", EODHD_API_KEY);
+        url.searchParams.append("fmt", "json");
+        for (const key in restParams) {
+          url.searchParams.append(key, restParams[key]);
+        }
+        const response = await fetch(url);
+        if (!response.ok) {
+          const errorText = await response.text();
+          throw new Error(
+            `EODHD API Error for ${symbol} (${response.status}): ${errorText}`
+          );
+        }
+        return response.json();
+      }
+
+      function getCurrencySymbol(currencyCode) {
+        if (currencyCode === "INR") return "₹";
+        if (currencyCode === "USD") return "$";
+        return "";
+      }
+
+      function formatMarketCap(num, currency) {
+        const symbol = getCurrencySymbol(currency);
+        if (num === null || isNaN(num) || num === 0) return null;
+        num = Number(num);
+        if (currency === "INR") {
+          if (num > 1e7) return `${symbol}${(num / 1e7).toFixed(2)} Cr`;
+        } else {
+          // Assume USD for others
+          if (num > 1e12) return `${symbol}${(num / 1e12).toFixed(2)}T`;
+          if (num > 1e9) return `${symbol}${(num / 1e9).toFixed(2)}B`;
+          if (num > 1e6) return `${symbol}${(num / 1e6).toFixed(2)}M`;
+        }
+        return `${symbol}${num.toLocaleString()}`;
+      }
+
+      function getAnalysisPromptContext() {
+        const manualPrice = parseFloat(manualPriceInput.value);
+        const priceToUse =
+          !isNaN(manualPrice) && manualPrice > 0
+            ? manualPrice
+            : currentStockData.quote.price;
+        const priceContext =
+          !isNaN(manualPrice) && manualPrice > 0
+            ? `Its last closing price was ${getCurrencySymbol(
+                currentStockData.quote.currency
+              )}${currentStockData.quote.price.toFixed(
+                2
+              )}, and the current price is ${getCurrencySymbol(
+                currentStockData.quote.currency
+              )}${priceToUse.toFixed(2)}.`
+            : `Its last closing price was ${getCurrencySymbol(
+                currentStockData.quote.currency
+              )}${priceToUse.toFixed(2)}.`;
+
+        const peRatio = peRatioInput.value || "Not Available";
+
+        return `As a financial analyst, analyze ${currentStockData.overview.name} (${stockSymbolEl.textContent}). ${priceContext} Its P/E ratio is ${peRatio}.`;
+      }
+
+      async function getBuyAdvice() {
+        const context = getAnalysisPromptContext();
+        const prompt = `${context} Should I consider buying it? Provide a clear recommendation like **Buy**, **Hold**, or **Sell**. Then, give 2-3 key bullish reasons. Also, provide a "Bullish Score" from 1 to 100, where 100 is the strongest buy signal. End with a disclaimer that this is not financial advice.`;
+        await callGeminiApi(prompt, aiActionLoader, aiActionResult, buyBtn);
+      }
+
+      async function getSellAdvice() {
+        const context = getAnalysisPromptContext();
+        const prompt = `${context} Should I consider selling it? Provide a clear recommendation like **Buy**, **Hold**, or **Sell**. Then, give 2-3 key bearish risks. Also, provide a "Bearish Score" from 1 to 100, where 100 represents the highest risk/strongest sell signal. End with a disclaimer that this is not financial advice.`;
+        await callGeminiApi(prompt, aiActionLoader, aiActionResult, sellBtn);
+      }
+
+      async function getInvestmentIdeas() {
+        const loader = document.getElementById("investmentIdeasLoader");
+        const resultContainer = document.getElementById(
+          "investmentIdeasResult"
+        );
+
+        loader.style.display = "block";
+        resultContainer.innerHTML = "";
+        generateIdeasBtn.disabled = true;
+
+        const risk = document.getElementById("riskTolerance").value;
+        const goal = document.getElementById("investmentGoal").value;
+
+        if (!goal) {
+          showInfoModal(
+            "Input Required",
+            "Please specify your investment goal."
+          );
+          loader.style.display = "none";
+          generateIdeasBtn.disabled = false;
+          return;
+        }
+
+        const prompt = `I am an investor with a ${risk} risk tolerance and my primary investment goal is "${goal}". Based on this profile, suggest 3-4 stocks from the Indian NSE market. For each stock, provide a brief (1-2 sentence) justification for why it fits my profile. Format the output clearly with stock names as headings.`;
+
+        await callGeminiApi(prompt, loader, resultContainer, generateIdeasBtn);
+      }
+
+      async function callGeminiApi(prompt, loader, resultContainer, button) {
+        const allButtons = [buyBtn, sellBtn, generateIdeasBtn];
+        allButtons.forEach((btn) => (btn.disabled = true));
+        loader.style.display = "block";
+        resultContainer.innerHTML = "";
+
+        const apiKey = "AIzaSyCwd4yKoW5ygvIJ_b6H5ltTd_mSRjUR-MkAPI"; // Leave empty
+        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+        const payload = { contents: [{ parts: [{ text: prompt }] }] };
+
+        try {
+          const response = await fetch(apiUrl, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+          if (!response.ok) {
+            const errorData = await response.json();
+            throw new Error(
+              errorData.error
+                ? errorData.error.message
+                : "An unknown API error occurred."
+            );
+          }
+          const data = await response.json();
+          const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+          if (text) {
+            let formattedText = text
+              .replace(/\*\*(.*?)\*\*/g, '<strong class="text-xl">$1</strong>')
+              .replace(/\n\s?\*\s/g, '</li><li class="mt-2">')
+              .replace(/\n/g, "<br>");
+            resultContainer.innerHTML = `<ul class="list-disc list-inside text-left">${formattedText}</ul>`;
+          } else {
+            throw new Error(
+              "Received an empty or invalid response from the AI."
+            );
+          }
+        } catch (error) {
+          console.error("Gemini API Error:", error);
+          showInfoModal(
+            "AI Error",
+            `Failed to get AI insights. ${error.message}`
+          );
+          resultContainer.innerHTML = `<p class="text-red-400">Could not load insights. Please try again.</p>`;
+        } finally {
+          loader.style.display = "none";
+          allButtons.forEach((btn) => (btn.disabled = false));
+        }
+      }
+
+      async function searchForSymbol(keyword, exchange) {
+        let url = `https://eodhd.com/api/search/${keyword}?api_token=${EODHD_API_KEY}&fmt=json`;
+
+        try {
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error("Search request failed.");
+          }
+          const data = await response.json();
+
+          let results = [];
+          if (Array.isArray(data)) {
+            results = data
+              .filter((item) => item.Exchange === "NSE")
+              .map((item) => ({
+                symbol: `${item.Code}.${item.Exchange}`,
+                name: item.Name,
+              }));
+          }
+
+          if (results.length === 0) {
+            showInfoModal(
+              "No Results",
+              `No stocks found for "${keyword}" on the NSE exchange.`
+            );
+            return;
+          }
+          displaySearchResults(results, exchange);
+        } catch (error) {
+          console.error("Symbol search error:", error);
+          showInfoModal(
+            "Search Error",
+            `Could not perform search. ${error.message}`
+          );
+        }
+      }
+
+      function displaySearchResults(results, exchange) {
+        searchResultsList.innerHTML = ""; // Clear previous results
+
+        results.forEach((stock) => {
+          const btn = document.createElement("button");
+          btn.className =
+            "w-full text-left p-2 bg-slate-800 hover:bg-slate-700 rounded-lg";
+          btn.innerHTML = `
+                    <p class="font-bold">${stock.symbol}</p>
+                    <p class="text-sm text-slate-400">${stock.name}</p>
+                `;
+          btn.onclick = () => {
+            searchModal.style.display = "none";
+            searchInput.value = stock.symbol;
+            fetchAndDisplayStockData(stock.symbol, exchange);
+          };
+          searchResultsList.appendChild(btn);
+        });
+
+        searchModal.style.display = "flex";
+      }
+
+      // --- Event Listeners ---
+      searchBtn.addEventListener("click", () => {
+        const keyword = searchInput.value.trim();
+        const exchange = exchangeSelect.value;
+
+        if (keyword) {
+          searchForSymbol(keyword, exchange);
+        } else {
+          showInfoModal(
+            "Input Required",
+            "Please enter a company name or symbol to search."
+          );
+        }
+      });
+
+      exchangeSelect.addEventListener("change", (e) => {
+        const exchange = e.target.value;
+        searchInput.value = ""; // Clear the input on exchange change
+        if (exchange === "US") {
+          searchInput.placeholder = "Search by name or symbol";
+        } else {
+          searchInput.placeholder = `Search ${exchange} name or symbol`;
+        }
+      });
+
+      searchInput.addEventListener("keyup", (event) => {
+        if (event.key === "Enter") searchBtn.click();
+      });
+      buyBtn.addEventListener("click", getBuyAdvice);
+      sellBtn.addEventListener("click", getSellAdvice);
+      generateIdeasBtn.addEventListener("click", getInvestmentIdeas);
+
+      closeBtn.addEventListener("click", () => {
+        infoModal.style.display = "none";
+      });
+      window.addEventListener("click", (event) => {
+        if (event.target == infoModal) infoModal.style.display = "none";
+      });
+
+      closeSearchModalBtn.addEventListener("click", () => {
+        searchModal.style.display = "none";
+      });
+      window.addEventListener("click", (event) => {
+        if (event.target == searchModal) searchModal.style.display = "none";
+      });
+
+      donateBtn.addEventListener("click", () => {
+        donationModal.style.display = "flex";
+      });
+      closeDonationModalBtn.addEventListener("click", () => {
+        donationModal.style.display = "none";
+      });
+      window.addEventListener("click", (event) => {
+        if (event.target == donationModal) donationModal.style.display = "none";
+      });
+
+      copyUpiBtn.addEventListener("click", () => {
+        const upiId = upiIdEl.textContent;
+        const textArea = document.createElement("textarea");
+        textArea.value = upiId;
+        document.body.appendChild(textArea);
+        textArea.select();
+        try {
+          document.execCommand("copy");
+          showInfoModal("Success", "UPI ID copied to clipboard!", false);
+        } catch (err) {
+          showInfoModal("Error", "Failed to copy UPI ID.");
+        }
+        document.body.removeChild(textArea);
+      });
+
+      // --- Initial Load ---
+      window.onload = () => {
+        exchangeSelect.value = "NSE";
+        searchInput.value = "RELIANCE.NSE";
+        searchInput.placeholder = "Search NSE name or symbol";
+        fetchAndDisplayStockData("RELIANCE.NSE", "NSE");
+      };
+    </script>
+  </body>
+</html>
