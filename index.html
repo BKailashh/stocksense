@@ -473,38 +473,6 @@
               class="mt-4 text-slate-300 p-4 bg-slate-800/50 rounded-lg"
             ></div>
           </section>
-
-          <!-- Donation Section -->
-          <section class="card rounded-xl p-6 text-center">
-            <div
-              class="flex justify-between items-center mb-4 border-b border-slate-700 pb-2"
-            >
-              <div class="flex items-center gap-2">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-6 w-6 text-pink-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"
-                  />
-                </svg>
-                <h2 class="text-xl font-bold">Support This Project</h2>
-              </div>
-            </div>
-            <p class="text-slate-400 mb-4">
-              If you find this tool helpful, please consider supporting its
-              development.
-            </p>
-            <button id="donateBtn" class="btn btn-primary">
-              Donate via UPI
-            </button>
-          </section>
         </div>
       </main>
     </div>
@@ -530,27 +498,6 @@
         >
           <!-- Results will be populated here -->
         </div>
-      </div>
-    </div>
-
-    <div id="donationModal" class="modal">
-      <div class="modal-content">
-        <span id="closeDonationModal" class="close-btn">&times;</span>
-        <h2 class="text-xl font-bold mb-4 text-white">Donate via UPI</h2>
-        <p class="text-slate-400 mb-4">Scan the QR code with your UPI app.</p>
-        <img
-          id="upiQrCode"
-          src="https://api.qrserver.com/v1/create-qr-code/?size=200x200&data=upi://pay?pa=bkailashh1996cs-1@okhdfcbank"
-          alt="UPI QR Code"
-          class="mx-auto rounded-lg"
-        />
-        <p class="mt-4 text-slate-300">Or use the UPI ID:</p>
-        <p id="upiId" class="font-mono bg-slate-800 p-2 rounded-lg my-2">
-          bkailashh1996cs-1@okhdfcbank
-        </p>
-        <button id="copyUpiBtn" class="btn btn-primary mt-2">
-          Copy UPI ID
-        </button>
       </div>
     </div>
 
@@ -600,13 +547,6 @@
       const searchModal = document.getElementById("searchModal");
       const searchResultsList = document.getElementById("searchResultsList");
       const closeSearchModalBtn = document.getElementById("closeSearchModal");
-
-      const donationModal = document.getElementById("donationModal");
-      const donateBtn = document.getElementById("donateBtn");
-      const closeDonationModalBtn =
-        document.getElementById("closeDonationModal");
-      const copyUpiBtn = document.getElementById("copyUpiBtn");
-      const upiIdEl = document.getElementById("upiId");
 
       // --- Chart.js Initialization ---
       const ctx = document.getElementById("stockChart").getContext("2d");
@@ -1185,31 +1125,6 @@
       });
       window.addEventListener("click", (event) => {
         if (event.target == searchModal) searchModal.style.display = "none";
-      });
-
-      donateBtn.addEventListener("click", () => {
-        donationModal.style.display = "flex";
-      });
-      closeDonationModalBtn.addEventListener("click", () => {
-        donationModal.style.display = "none";
-      });
-      window.addEventListener("click", (event) => {
-        if (event.target == donationModal) donationModal.style.display = "none";
-      });
-
-      copyUpiBtn.addEventListener("click", () => {
-        const upiId = upiIdEl.textContent;
-        const textArea = document.createElement("textarea");
-        textArea.value = upiId;
-        document.body.appendChild(textArea);
-        textArea.select();
-        try {
-          document.execCommand("copy");
-          showInfoModal("Success", "UPI ID copied to clipboard!", false);
-        } catch (err) {
-          showInfoModal("Error", "Failed to copy UPI ID.");
-        }
-        document.body.removeChild(textArea);
       });
 
       // --- Initial Load ---
