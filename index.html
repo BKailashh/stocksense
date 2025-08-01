@@ -459,80 +459,6 @@
               Donate via UPI
             </button>
           </section>
-
-          <!-- API Configuration Section (Hidden by default, for local development) -->
-          <section
-            id="configSection"
-            class="card rounded-xl p-6 text-center"
-            style="display: none"
-          >
-            <div
-              class="flex justify-between items-center mb-4 border-b border-slate-700 pb-2"
-            >
-              <div class="flex items-center gap-2">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-6 w-6 text-yellow-400"
-                  fill="none"
-                  viewBox="0 0 24 24"
-                  stroke="currentColor"
-                >
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
-                  />
-                  <path
-                    stroke-linecap="round"
-                    stroke-linejoin="round"
-                    stroke-width="2"
-                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
-                  />
-                </svg>
-                <h2 class="text-xl font-bold">API Configuration</h2>
-              </div>
-            </div>
-            <p class="text-slate-400 mb-4">
-              For local development only. Enter your API keys below.
-            </p>
-            <div class="mb-4">
-              <label
-                for="geminiApiKeyInput"
-                class="block text-sm font-medium text-slate-400 mb-1 text-left"
-                >Gemini API Key</label
-              >
-              <div class="flex space-x-2">
-                <input
-                  type="password"
-                  id="geminiApiKeyInput"
-                  class="flex-1 bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-green-500"
-                  placeholder="Gemini API Key"
-                />
-                <button id="saveGeminiKeyBtn" class="btn btn-primary">
-                  Save
-                </button>
-              </div>
-            </div>
-            <div>
-              <label
-                for="eodhdApiKeyInput"
-                class="block text-sm font-medium text-slate-400 mb-1 text-left"
-                >EODHD API Key</label
-              >
-              <div class="flex space-x-2">
-                <input
-                  type="password"
-                  id="eodhdApiKeyInput"
-                  class="flex-1 bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-green-500"
-                  placeholder="EODHD API Key"
-                />
-                <button id="saveEODHDKeyBtn" class="btn btn-primary">
-                  Save
-                </button>
-              </div>
-            </div>
-          </section>
         </div>
       </main>
     </div>
@@ -846,45 +772,43 @@
         stockChart.update();
       }
 
-      // Function to get EODHD API key securely
-      function getEODHDApiKey() {
-        // For local development - replace with your key for testing
-        if (
-          window.location.hostname === "localhost" ||
-          window.location.hostname === "127.0.0.1"
-        ) {
-          return localStorage.getItem("EODHD_API_KEY") || "";
-        }
+      // old code
+      // async function fetchEODHD(params) {
+      //   const { api, symbol, ...restParams } = params;
+      //   const url = new URL(`https://eodhd.com/api/${api}/${symbol}`);
+      //   url.searchParams.append("api_token", EODHD_API_KEY);
+      //   url.searchParams.append("fmt", "json");
+      //   for (const key in restParams) {
+      //     url.searchParams.append(key, restParams[key]);
+      //   }
+      //   const response = await fetch(url);
+      //   if (!response.ok) {
+      //     const errorText = await response.text();
+      //     throw new Error(
+      //       `EODHD API Error for ${symbol} (${response.status}): ${errorText}`
+      //     );
+      //   }
+      //   return response.json();
+      // }
 
-        // For production - get from environment variables embedded by the deployment platform
-        if (typeof EODHD_API_KEY !== "undefined") {
-          return EODHD_API_KEY;
-        }
-
-        // If no key is available
-        showInfoModal(
-          "API Key Missing",
-          "Please configure an EODHD API key. See README for instructions."
-        );
-        return "";
-      }
-
+      // NEW CODE
       async function fetchEODHD(params) {
-        const { api, symbol, ...restParams } = params;
-        const url = new URL(`https://eodhd.com/api/${api}/${symbol}`);
-        url.searchParams.append("api_token", getEODHDApiKey());
-        url.searchParams.append("fmt", "json");
-        for (const key in restParams) {
-          url.searchParams.append(key, restParams[key]);
-        }
+        const { symbol, period } = params;
+        // The URL points to your own Netlify Function
+        const url = `/.netlify/functions/get-stock-data?symbol=${symbol}&period=${
+          period || "d"
+        }`;
+
         const response = await fetch(url);
+        const data = await response.json();
+
         if (!response.ok) {
-          const errorText = await response.text();
+          // The error message now comes from your function's response body
           throw new Error(
-            `EODHD API Error for ${symbol} (${response.status}): ${errorText}`
+            data.message || `API Error for ${symbol} (${response.status})`
           );
         }
-        return response.json();
+        return data;
       }
 
       function getCurrencySymbol(currencyCode) {
@@ -972,16 +896,67 @@
         await callGeminiApi(prompt, loader, resultContainer, generateIdeasBtn);
       }
 
+      //OLD CODE
+      // async function callGeminiApi(prompt, loader, resultContainer, button) {
+      //   const allButtons = [buyBtn, sellBtn, generateIdeasBtn];
+      //   allButtons.forEach((btn) => (btn.disabled = true));
+      //   loader.style.display = "block";
+      //   resultContainer.innerHTML = "";
+
+      //   const apiKey = ""; // Leave empty
+      //   const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+      //   const payload = { contents: [{ parts: [{ text: prompt }] }] };
+
+      //   try {
+      //     const response = await fetch(apiUrl, {
+      //       method: "POST",
+      //       headers: { "Content-Type": "application/json" },
+      //       body: JSON.stringify(payload),
+      //     });
+      //     if (!response.ok) {
+      //       const errorData = await response.json();
+      //       throw new Error(
+      //         errorData.error
+      //           ? errorData.error.message
+      //           : "An unknown API error occurred."
+      //       );
+      //     }
+      //     const data = await response.json();
+      //     const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+      //     if (text) {
+      //       let formattedText = text
+      //         .replace(/\*\*(.*?)\*\*/g, '<strong class="text-xl">$1</strong>')
+      //         .replace(/\n\s?\*\s/g, '</li><li class="mt-2">')
+      //         .replace(/\n/g, "<br>");
+      //       resultContainer.innerHTML = `<ul class="list-disc list-inside text-left">${formattedText}</ul>`;
+      //     } else {
+      //       throw new Error(
+      //         "Received an empty or invalid response from the AI."
+      //       );
+      //     }
+      //   } catch (error) {
+      //     console.error("Gemini API Error:", error);
+      //     showInfoModal(
+      //       "AI Error",
+      //       `Failed to get AI insights. ${error.message}`
+      //     );
+      //     resultContainer.innerHTML = `<p class="text-red-400">Could not load insights. Please try again.</p>`;
+      //   } finally {
+      //     loader.style.display = "none";
+      //     allButtons.forEach((btn) => (btn.disabled = false));
+      //   }
+      // }
+
+      // NEW CODE
       async function callGeminiApi(prompt, loader, resultContainer, button) {
         const allButtons = [buyBtn, sellBtn, generateIdeasBtn];
         allButtons.forEach((btn) => (btn.disabled = true));
         loader.style.display = "block";
         resultContainer.innerHTML = "";
 
-        // Get API key from environment or alternative method
-        const apiKey = getGeminiApiKey();
-        const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
-        const payload = { contents: [{ parts: [{ text: prompt }] }] };
+        // The URL points to your own Netlify Function
+        const apiUrl = `/.netlify/functions/get-ai-insight`;
+        const payload = { prompt: prompt };
 
         try {
           const response = await fetch(apiUrl, {
@@ -989,15 +964,12 @@
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify(payload),
           });
-          if (!response.ok) {
-            const errorData = await response.json();
-            throw new Error(
-              errorData.error
-                ? errorData.error.message
-                : "An unknown API error occurred."
-            );
-          }
+
           const data = await response.json();
+          if (!response.ok) {
+            throw new Error(data.message || "An unknown API error occurred.");
+          }
+
           const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
           if (text) {
             let formattedText = text
@@ -1011,7 +983,7 @@
             );
           }
         } catch (error) {
-          console.error("Gemini API Error:", error);
+          console.error("API Error:", error);
           showInfoModal(
             "AI Error",
             `Failed to get AI insights. ${error.message}`
@@ -1024,7 +996,7 @@
       }
 
       async function searchForSymbol(keyword, exchange) {
-        let url = `https://eodhd.com/api/search/${keyword}?api_token=${getEODHDApiKey()}&fmt=json`;
+        let url = `https://eodhd.com/api/search/${keyword}?api_token=${EODHD_API_KEY}&fmt=json`;
 
         try {
           const response = await fetch(url);
@@ -1153,93 +1125,8 @@
         document.body.removeChild(textArea);
       });
 
-      // Function to get API keys securely
-      function getGeminiApiKey() {
-        // For local development - replace with your key for testing
-        if (
-          window.location.hostname === "localhost" ||
-          window.location.hostname === "127.0.0.1"
-        ) {
-          return localStorage.getItem("GEMINI_API_KEY") || "";
-        }
-
-        // For production - get from environment variables embedded by the deployment platform
-        // Netlify/Vercel injects these variables during build time when properly configured
-        if (typeof GEMINI_API_KEY !== "undefined") {
-          return GEMINI_API_KEY;
-        }
-
-        // If no key is available
-        showInfoModal(
-          "API Key Missing",
-          "Please configure a Gemini API key. See README for instructions."
-        );
-        return "";
-      }
-
       // --- Initial Load ---
       window.onload = () => {
-        // Show config section if we're on localhost
-        if (
-          window.location.hostname === "localhost" ||
-          window.location.hostname === "127.0.0.1"
-        ) {
-          document.getElementById("configSection").style.display = "block";
-
-          // Configure Gemini API Key save button
-          document
-            .getElementById("saveGeminiKeyBtn")
-            .addEventListener("click", () => {
-              const apiKey = document
-                .getElementById("geminiApiKeyInput")
-                .value.trim();
-              if (apiKey) {
-                localStorage.setItem("GEMINI_API_KEY", apiKey);
-                showInfoModal(
-                  "Success",
-                  "Gemini API key saved to local storage",
-                  false
-                );
-                document.getElementById("geminiApiKeyInput").value =
-                  "••••••••••••••••••••";
-              } else {
-                showInfoModal("Error", "Please enter a valid API key");
-              }
-            });
-
-          // Configure EODHD API Key save button
-          document
-            .getElementById("saveEODHDKeyBtn")
-            .addEventListener("click", () => {
-              const apiKey = document
-                .getElementById("eodhdApiKeyInput")
-                .value.trim();
-              if (apiKey) {
-                localStorage.setItem("EODHD_API_KEY", apiKey);
-                showInfoModal(
-                  "Success",
-                  "EODHD API key saved to local storage",
-                  false
-                );
-                document.getElementById("eodhdApiKeyInput").value =
-                  "••••••••••••••••••••";
-              } else {
-                showInfoModal("Error", "Please enter a valid API key");
-              }
-            });
-
-          // Pre-fill from localStorage if available
-          if (localStorage.getItem("GEMINI_API_KEY")) {
-            document.getElementById("geminiApiKeyInput").value =
-              "••••••••••••••••••••";
-          }
-
-          if (localStorage.getItem("EODHD_API_KEY")) {
-            document.getElementById("eodhdApiKeyInput").value =
-              "••••••••••••••••••••";
-          }
-        }
-
         exchangeSelect.value = "NSE";
         searchInput.value = "RELIANCE.NSE";
         searchInput.placeholder = "Search NSE name or symbol";
