@@ -12,8 +12,6 @@
       rel="stylesheet"
     />
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <!-- Load configuration - this file is gitignored and only exists locally -->
-    <script src="config.js"></script>
     <style>
       body {
         font-family: "Inter", sans-serif;
@@ -461,6 +459,80 @@
               Donate via UPI
             </button>
           </section>
+
+          <!-- API Configuration Section (Hidden by default, for local development) -->
+          <section
+            id="configSection"
+            class="card rounded-xl p-6 text-center"
+            style="display: none"
+          >
+            <div
+              class="flex justify-between items-center mb-4 border-b border-slate-700 pb-2"
+            >
+              <div class="flex items-center gap-2">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  class="h-6 w-6 text-yellow-400"
+                  fill="none"
+                  viewBox="0 0 24 24"
+                  stroke="currentColor"
+                >
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"
+                  />
+                  <path
+                    stroke-linecap="round"
+                    stroke-linejoin="round"
+                    stroke-width="2"
+                    d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"
+                  />
+                </svg>
+                <h2 class="text-xl font-bold">API Configuration</h2>
+              </div>
+            </div>
+            <p class="text-slate-400 mb-4">
+              For local development only. Enter your API keys below.
+            </p>
+            <div class="mb-4">
+              <label
+                for="geminiApiKeyInput"
+                class="block text-sm font-medium text-slate-400 mb-1 text-left"
+                >Gemini API Key</label
+              >
+              <div class="flex space-x-2">
+                <input
+                  type="password"
+                  id="geminiApiKeyInput"
+                  class="flex-1 bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="Gemini API Key"
+                />
+                <button id="saveGeminiKeyBtn" class="btn btn-primary">
+                  Save
+                </button>
+              </div>
+            </div>
+            <div>
+              <label
+                for="eodhdApiKeyInput"
+                class="block text-sm font-medium text-slate-400 mb-1 text-left"
+                >EODHD API Key</label
+              >
+              <div class="flex space-x-2">
+                <input
+                  type="password"
+                  id="eodhdApiKeyInput"
+                  class="flex-1 bg-slate-800 border border-slate-700 rounded-lg py-2 px-3 focus:outline-none focus:ring-2 focus:ring-green-500"
+                  placeholder="EODHD API Key"
+                />
+                <button id="saveEODHDKeyBtn" class="btn btn-primary">
+                  Save
+                </button>
+              </div>
+            </div>
+          </section>
         </div>
       </main>
     </div>
@@ -512,8 +584,6 @@
 
     <script>
       // --- State and Constants ---
-      // Get API key from config.js (if available) or use empty string
-      const EODHD_API_KEY = window.CONFIG?.EODHD_API_KEY || "";
       let currentStockData = {};
 
       // --- DOM Elements ---
@@ -776,10 +846,33 @@
         stockChart.update();
       }
 
+      // Function to get EODHD API key securely
+      function getEODHDApiKey() {
+        // For local development - replace with your key for testing
+        if (
+          window.location.hostname === "localhost" ||
+          window.location.hostname === "127.0.0.1"
+        ) {
+          return localStorage.getItem("EODHD_API_KEY") || "";
+        }
+
+        // For production - get from environment variables embedded by the deployment platform
+        if (typeof EODHD_API_KEY !== "undefined") {
+          return EODHD_API_KEY;
+        }
+
+        // If no key is available
+        showInfoModal(
+          "API Key Missing",
+          "Please configure an EODHD API key. See README for instructions."
+        );
+        return "";
+      }
+
       async function fetchEODHD(params) {
         const { api, symbol, ...restParams } = params;
         const url = new URL(`https://eodhd.com/api/${api}/${symbol}`);
-        url.searchParams.append("api_token", EODHD_API_KEY);
+        url.searchParams.append("api_token", getEODHDApiKey());
         url.searchParams.append("fmt", "json");
         for (const key in restParams) {
           url.searchParams.append(key, restParams[key]);
@@ -885,7 +978,8 @@
         loader.style.display = "block";
         resultContainer.innerHTML = "";
 
-        const apiKey = "AIzaSyCwd4yKoW5ygvIJ_b6H5ltTd_mSRjUR-MkAPI"; // Leave empty
+        // Get API key from environment or alternative method
+        const apiKey = getGeminiApiKey();
         const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
         const payload = { contents: [{ parts: [{ text: prompt }] }] };
 
@@ -930,7 +1024,7 @@
       }
 
       async function searchForSymbol(keyword, exchange) {
-        let url = `https://eodhd.com/api/search/${keyword}?api_token=${EODHD_API_KEY}&fmt=json`;
+        let url = `https://eodhd.com/api/search/${keyword}?api_token=${getEODHDApiKey()}&fmt=json`;
 
         try {
           const response = await fetch(url);
@@ -1059,8 +1153,93 @@
         document.body.removeChild(textArea);
       });
 
+      // Function to get API keys securely
+      function getGeminiApiKey() {
+        // For local development - replace with your key for testing
+        if (
+          window.location.hostname === "localhost" ||
+          window.location.hostname === "127.0.0.1"
+        ) {
+          return localStorage.getItem("GEMINI_API_KEY") || "";
+        }
+
+        // For production - get from environment variables embedded by the deployment platform
+        // Netlify/Vercel injects these variables during build time when properly configured
+        if (typeof GEMINI_API_KEY !== "undefined") {
+          return GEMINI_API_KEY;
+        }
+
+        // If no key is available
+        showInfoModal(
+          "API Key Missing",
+          "Please configure a Gemini API key. See README for instructions."
+        );
+        return "";
+      }
+
       // --- Initial Load ---
       window.onload = () => {
+        // Show config section if we're on localhost
+        if (
+          window.location.hostname === "localhost" ||
+          window.location.hostname === "127.0.0.1"
+        ) {
+          document.getElementById("configSection").style.display = "block";
+
+          // Configure Gemini API Key save button
+          document
+            .getElementById("saveGeminiKeyBtn")
+            .addEventListener("click", () => {
+              const apiKey = document
+                .getElementById("geminiApiKeyInput")
+                .value.trim();
+              if (apiKey) {
+                localStorage.setItem("GEMINI_API_KEY", apiKey);
+                showInfoModal(
+                  "Success",
+                  "Gemini API key saved to local storage",
+                  false
+                );
+                document.getElementById("geminiApiKeyInput").value =
+                  "••••••••••••••••••••";
+              } else {
+                showInfoModal("Error", "Please enter a valid API key");
+              }
+            });
+
+          // Configure EODHD API Key save button
+          document
+            .getElementById("saveEODHDKeyBtn")
+            .addEventListener("click", () => {
+              const apiKey = document
+                .getElementById("eodhdApiKeyInput")
+                .value.trim();
+              if (apiKey) {
+                localStorage.setItem("EODHD_API_KEY", apiKey);
+                showInfoModal(
+                  "Success",
+                  "EODHD API key saved to local storage",
+                  false
+                );
+                document.getElementById("eodhdApiKeyInput").value =
+                  "••••••••••••••••••••";
+              } else {
+                showInfoModal("Error", "Please enter a valid API key");
+              }
+            });
+
+          // Pre-fill from localStorage if available
+          if (localStorage.getItem("GEMINI_API_KEY")) {
+            document.getElementById("geminiApiKeyInput").value =
+              "••••••••••••••••••••";
+          }
+
+          if (localStorage.getItem("EODHD_API_KEY")) {
+            document.getElementById("eodhdApiKeyInput").value =
+              "••••••••••••••••••••";
+          }
+        }
+
         exchangeSelect.value = "NSE";
         searchInput.value = "RELIANCE.NSE";
         searchInput.placeholder = "Search NSE name or symbol";

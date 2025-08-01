@@ -1,18 +1,15 @@
-# Dependencies
-node_modules/
-
-# Environment and config files with secrets
+# Local environment variables
 .env
-.env.local
-config.js
 
-# IDE and editor files
+# Editor directories and files
 .vscode/
 .idea/
-*.swp
-*.swo
-.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
 
-# Build files
-dist/
-build/
+# System files
+.DS_Store
+Thumbs.db
