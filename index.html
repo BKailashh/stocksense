@@ -995,8 +995,49 @@
         }
       }
 
+      //OLD CODE
+      // async function searchForSymbol(keyword, exchange) {
+      //   let url = `https://eodhd.com/api/search/${keyword}?api_token=${EODHD_API_KEY}&fmt=json`;
+
+      //   try {
+      //     const response = await fetch(url);
+      //     if (!response.ok) {
+      //       throw new Error("Search request failed.");
+      //     }
+      //     const data = await response.json();
+
+      //     let results = [];
+      //     if (Array.isArray(data)) {
+      //       results = data
+      //         .filter((item) => item.Exchange === "NSE")
+      //         .map((item) => ({
+      //           symbol: `${item.Code}.${item.Exchange}`,
+      //           name: item.Name,
+      //         }));
+      //     }
+
+      //     if (results.length === 0) {
+      //       showInfoModal(
+      //         "No Results",
+      //         `No stocks found for "${keyword}" on the NSE exchange.`
+      //       );
+      //       return;
+      //     }
+      //     displaySearchResults(results, exchange);
+      //   } catch (error) {
+      //     console.error("Symbol search error:", error);
+      //     showInfoModal(
+      //       "Search Error",
+      //       `Could not perform search. ${error.message}`
+      //     );
+      //   }
+      // }
+
+      // NEW CODE
+      // Replace the old searchForSymbol function with this one
       async function searchForSymbol(keyword, exchange) {
-        let url = `https://eodhd.com/api/search/${keyword}?api_token=${EODHD_API_KEY}&fmt=json`;
+        // This URL now points to your secure Netlify Function
+        const url = `/.netlify/functions/search-symbol?keyword=${keyword}`;
 
         try {
           const response = await fetch(url);
